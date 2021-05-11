@@ -57,6 +57,7 @@
 /* Syntax highlight types */
 #define HL_NORMAL 0
 #define HL_NONPRINT 1
+#define HL_KEYWORD 2
 
 /* This structure represents a single line of the file we are editing. */
 typedef struct erow {
