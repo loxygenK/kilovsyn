@@ -53,6 +53,7 @@
 #include <stdarg.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <regex.h>
 
 /* Syntax highlight types */
 #define HL_NORMAL 0
@@ -88,6 +89,7 @@ struct editorConfig {
 
 typedef struct syntaxHighlightConfig {
   char *regex;
+  regex_t *reg;
   int level;
 } syntaxHighlightConfig;
 
@@ -371,23 +373,49 @@ void loadSyntaxhightConfig(char *filename) {
 
   char line[512];
   char regex[255];
-  char level[255];
+  int level;
+
+  // Read each one lines
   while(fgets(line, 512, fp) != NULL) {
-    sscanf(line, "%s\t%s", regex, level);
-  
-    ++syntaxConf.confignum;
+    sscanf(line, "%s\t%d", regex, &level);
+
+    // Try to compile the regex
+    regex_t cplregex;
+    if(regcomp(&cplregex, regex, REG_EXTENDED)) {
+      printf("[!!!] Compilation failed for the regex below:\n");
+      printf("\n");
+      printf("      %s\n", regex);
+      exit(2);
+    }
+
+    // Prepare the heap area
     syntaxConf.configs = realloc(
       syntaxConf.configs,
       sizeof(syntaxHighlightConfig) * syntaxConf.confignum
     );
-    syntaxConf.configs[syntaxConf.confignum - 1].regex = 
-      malloc(sizeof(char) * strlen(regex));
+
+    // Copy Regex text
+    syntaxConf.configs[syntaxConf.confignum].regex = (char *)malloc(sizeof(char) * strlen(regex));
     memcpy(
-      syntaxConf.configs[syntaxConf.confignum - 1].regex,
+      syntaxConf.configs[syntaxConf.confignum].regex,
       regex,
-      strlen(regex)
+      sizeof(char) * strlen(regex)
     );
-    syntaxConf.configs[syntaxConf.confignum - 1].level = 3;
+
+    // Copy highlighting level
+    syntaxConf.configs[syntaxConf.confignum].level = level;
+
+    // Copy compiled regex data
+    syntaxConf.configs[syntaxConf.confignum].reg = (regex_t *)malloc(sizeof(regex_t));
+    memcpy(
+      syntaxConf.configs[syntaxConf.confignum].reg,
+      &cplregex,
+      sizeof(regex_t)
+    );
+
+    // Increment count
+    ++syntaxConf.confignum;
+
   }
 
   fclose(fp);
@@ -752,7 +780,18 @@ int main(int argc, char **argv) {
     initEditor();
     loadSyntaxhightConfig("syntax.conf");
     for(int i = 0; i<syntaxConf.confignum; i++) {
+      regmatch_t match;
       printf("'%s' => %d\n", syntaxConf.configs[i].regex, syntaxConf.configs[i].level);
+      if(
+        regexec(
+          syntaxConf.configs[i].reg,
+          "123#123",
+          1, &match, 0
+        )
+      ) {
+        printf("Something went wrong when trying to use pattern match..\n");
+      }
+      printf("Matched: [%lld] .. [%lld]", match.rm_so, match.rm_eo);
     }
   int dummy;
   scanf("%d", &dummy);
