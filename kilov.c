@@ -428,13 +428,13 @@ void loadColorPalette(char *filename) {
   }
 }
 
-void loadSyntaxhightConfig(char *filename) {
+void loadSyntaxhightConfig(const char *filename) {
   FILE *fp;
 
   fp = fopen(filename, "r");
   if (!fp) {
     printf("[!] Syntax highlight configuration file cannot be open.\n");
-    printf("    'syntax.conf' is required at the same directory of executable.\n");
+    printf("    '%s' is required at the same directory of executable.\n", filename);
     exit(1);
   }
 
@@ -482,7 +482,7 @@ void loadSyntaxhightConfig(char *filename) {
 
 /* Load the specified program in the editor memory and returns 0 on success
  * or 1 on error. */
-int editorOpen(char *filename) {
+int editorOpen(const char *filename) {
     FILE *fp;
 
     E.dirty = 0;
