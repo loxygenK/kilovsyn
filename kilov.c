@@ -438,20 +438,16 @@ void loadSyntaxhightConfig(char *filename) {
     exit(1);
   }
 
-  char line[512];
-  char regex[255];
-  char scheme[255];
-
   // Read each one lines
+  char line[512], regex[255], scheme[255];
   while(fgets(line, 512, fp) != NULL) {
     // Ignore comment
     if(strlen(line) == 1) continue;
     if(strncmp(line, ".-*-.", 5) == 0) continue;
 
+    // Read the syntax highlight configuration
     sscanf(line, "%s\t%s", regex, scheme);
     int code = getKeywordedHightlightSchee(scheme);
-
-    printf("%s (\"%s\", %s[%d])\n", line, regex, scheme, code);
 
     // Try to compile the regex
     regex_t cplregex;
@@ -462,41 +458,23 @@ void loadSyntaxhightConfig(char *filename) {
       printf("\n");
       exit(2);
     }
-    if(cplregex.re_nsub >= 1) {
-      printf("[W] Warning: All pattern matches in the regex (which are the part surrounded by blackets) won't makes sense.\n");
-      printf("    Index: %d\n", syntaxConf.confignum);
-      printf("    Related regex: \"%s\"", regex);
-      printf("\n");
-    }
-    
-    // Prepare the heap area
+
+    // Save configuration
     syntaxConf.configs = realloc(
       syntaxConf.configs,
       sizeof(syntaxHighlightConfig) * (syntaxConf.confignum + 1)
     );
 
-    // Copy Regex text
-    syntaxConf.configs[syntaxConf.confignum].regex = (char *)malloc(sizeof(char) * strlen(regex));
-    memcpy(
-      syntaxConf.configs[syntaxConf.confignum].regex,
-      regex,
-      sizeof(char) * strlen(regex)
-    );
+    syntaxHighlightConfig *synconf = &syntaxConf.configs[syntaxConf.confignum];
 
-    // Copy highlighting level
-    syntaxConf.configs[syntaxConf.confignum].level = code;
-
-    // Copy compiled regex data
-    syntaxConf.configs[syntaxConf.confignum].reg = (regex_t *)malloc(sizeof(regex_t));
-    memcpy(
-      syntaxConf.configs[syntaxConf.confignum].reg,
-      &cplregex,
-      sizeof(regex_t)
-    );
+    synconf->regex = (char *)malloc(sizeof(char) * strlen(regex));
+    synconf->reg = (regex_t *)malloc(sizeof(regex_t));
+    synconf->level = code;
+    memcpy(synconf->regex, regex, sizeof(char) * strlen(regex));
+    memcpy(synconf->reg, &cplregex, sizeof(regex_t));
 
     // Increment count
     ++syntaxConf.confignum;
-
   }
 
   fclose(fp);
