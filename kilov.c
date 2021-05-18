@@ -58,9 +58,15 @@
 /* Syntax highlight types */
 #define HL_NORMAL 0
 #define HL_NONPRINT 1
-#define HL_KEYWORD 2
+#define HL_TYPE 2
+#define HL_KEYWORD 3
+#define HL_SYMBOL 4
+#define HL_META 5
+#define HL_COMMENT 6
+#define HL_NUM_LIT 7
+#define HL_STR_LIT 8
 
-#define HL_MAX_VALUE HL_KEYWORD + 1
+#define HL_MAX_VALUE HL_STR_LIT + 1
 
 /* This structure represents a single line of the file we are editing. */
 typedef struct erow {
@@ -301,7 +307,13 @@ failed:
 
 int getKeywordedHightlightSchee(const char *keyword) {
   if(!strcmp(keyword, "NORMAL")) return HL_NORMAL;
+  if(!strcmp(keyword, "TYPE")) return HL_TYPE;
   if(!strcmp(keyword, "KEYWORD")) return HL_KEYWORD;
+  if(!strcmp(keyword, "SYMBOL")) return HL_SYMBOL;
+  if(!strcmp(keyword, "META")) return HL_META;
+  if(!strcmp(keyword, "COMMENT")) return HL_COMMENT;
+  if(!strcmp(keyword, "NUMLIT")) return HL_NUM_LIT;
+  if(!strcmp(keyword, "STRLIT")) return HL_STR_LIT;
   printf("Flowed out: unknown keyword: %s\n", keyword);
   return -1;
 }
@@ -434,7 +446,7 @@ void loadSyntaxhightConfig(char *filename) {
 
   char line[512];
   char regex[255];
-  int level;
+  char scheme[255];
 
   // Read each one lines
   while(fgets(line, 512, fp) != NULL) {
@@ -442,8 +454,10 @@ void loadSyntaxhightConfig(char *filename) {
     if(strlen(line) == 1) continue;
     if(strncmp(line, ".-*-.", 5) == 0) continue;
 
-    sscanf(line, "%s\t%d", regex, &level);
-    printf("%s (\"%s\", %d)\n", line, regex, level);
+    sscanf(line, "%s\t%s", regex, scheme);
+    int code = getKeywordedHightlightSchee(scheme);
+
+    printf("%s (\"%s\", %s[%d])\n", line, regex, scheme, code);
 
     // Try to compile the regex
     regex_t cplregex;
@@ -460,11 +474,11 @@ void loadSyntaxhightConfig(char *filename) {
       printf("    Related regex: \"%s\"", regex);
       printf("\n");
     }
-
+    
     // Prepare the heap area
     syntaxConf.configs = realloc(
       syntaxConf.configs,
-      sizeof(syntaxHighlightConfig) * syntaxConf.confignum
+      sizeof(syntaxHighlightConfig) * (syntaxConf.confignum + 1)
     );
 
     // Copy Regex text
@@ -476,7 +490,7 @@ void loadSyntaxhightConfig(char *filename) {
     );
 
     // Copy highlighting level
-    syntaxConf.configs[syntaxConf.confignum].level = level;
+    syntaxConf.configs[syntaxConf.confignum].level = code;
 
     // Copy compiled regex data
     syntaxConf.configs[syntaxConf.confignum].reg = (regex_t *)malloc(sizeof(regex_t));
