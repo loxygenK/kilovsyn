@@ -299,9 +299,30 @@ failed:
 /* Set every byte of row->hl (that corresponds to every character in the line)
  * to the right syntax highlight type (HL_* defines). */
 void editorUpdateSyntax(erow *row) {
-  editorSetStatusMessage("editorUpdateSyntax has been called");
     row->hl = realloc(row->hl,row->rsize);
-  // memset(row->hl,HL_NORMAL,row->rsize);
+
+    // Handle regex
+    for(int i = 0; i < syntaxConf.confignum; i++) {
+      regmatch_t match;
+      syntaxHighlightConfig *syn = &syntaxConf.configs[i];
+
+      // Execute pattern match
+      // ( if regexec() returns non-zero value, no match found )
+      if(regexec(syn->reg, row->chars, 1, &match, 0)) {
+        continue;
+      };
+      editorSetStatusMessage("work: %s (%s)", syn->regex, row->chars);
+
+      // Fill up
+      for(int j = match.rm_so; j <= match.rm_eo; j++) {
+        row->hl[j] = syn->level;
+      }
+      // memset(
+      //   row->hl + match.rm_so,
+      //   syn->level,
+      //   (match.rm_eo - match.rm_so)
+      // );
+    }
 }
 /* ======================= Editor rows implementation ======================= */
 
@@ -353,7 +374,7 @@ void editorInsertRow(int at, char *s, size_t len) {
     E.row[at].chars = malloc(len+1);
     memcpy(E.row[at].chars,s,len+1);
     E.row[at].hl = malloc(len+1);
-    memset(E.row[at].hl, 2, len + 1);
+    memset(E.row[at].hl,0,len+1);
     E.row[at].hl_oc = 0;
     E.row[at].render = NULL;
     E.row[at].rsize = 0;
@@ -368,8 +389,8 @@ void loadSyntaxhightConfig(char *filename) {
 
   fp = fopen(filename, "r");
   if (!fp) {
-    printf("[!] Syntax highlight configuration file cannot be open.");
-    printf("    'syntax.conf' is required at the same directory of executable.");
+    printf("[!] Syntax highlight configuration file cannot be open.\n");
+    printf("    'syntax.conf' is required at the same directory of executable.\n");
     exit(1);
   }
 
@@ -379,7 +400,12 @@ void loadSyntaxhightConfig(char *filename) {
 
   // Read each one lines
   while(fgets(line, 512, fp) != NULL) {
+    // Ignore comment
+    if(strlen(line) == 1) continue;
+    if(strncmp(line, ".-*-.", 5) == 0) continue;
+
     sscanf(line, "%s\t%d", regex, &level);
+    printf("%s (\"%s\", %d)\n", line, regex, level);
 
     // Try to compile the regex
     regex_t cplregex;
@@ -533,7 +559,7 @@ void editorRefreshScreen(void) {
             unsigned char *hl = r->hl+E.coloff;
             int j;
             for (j = 0; j < len; j++) {
-                editorSetStatusMessage("[%d, %d] %c", y, j, c[j]);
+                // editorSetStatusMessage("[%d, %d] %c", y, j, c[j]);
                 if (hl[j] == HL_NONPRINT) {
                     char sym;
                     abAppend(&ab,"\x1b[7m",4);
@@ -545,7 +571,7 @@ void editorRefreshScreen(void) {
                     abAppend(&ab,"\x1b[0m",4);
                 } else if (hl[j] == HL_KEYWORD) {
                     abAppend(&ab, "\x1b[38;5;39m", 10); // 10
-                    abAppend(&ab, &c[j], 1);
+                    abAppend(&ab,c+j,1);
                  } else if (hl[j] == HL_NORMAL) {
                     if (current_color != -1) {
                         abAppend(&ab,"\x1b[39m",5);
@@ -553,7 +579,7 @@ void editorRefreshScreen(void) {
                     }
                     abAppend(&ab,c+j,1);
                 } else {
-                    abAppend(&ab,c+j,1);
+                  abAppend(&ab,c+j,1);
                 }
             }
         }
@@ -799,20 +825,23 @@ int main(int argc, char **argv) {
       if(
         regexec(
           syntaxConf.configs[i].reg,
-          "123#123",
+          "#include <stdio.h>",
           1, &match, 0
         )
       ) {
-        printf("Something went wrong when trying to use pattern match..\n");
+        printf("  No match or something went wrong\n");
+        continue;
       }
-      printf("Matched: [%lld] .. [%lld]", match.rm_so, match.rm_eo);
+      printf("  Matched: [%lld] .. [%lld]\n", match.rm_so, match.rm_eo);
+      printf("    | #include <stdio.h>\n");
+      printf("    |\x1b[%dCS\x1b[%dCG\n", match.rm_so, match.rm_eo - match.rm_so - 1);
     }
   int dummy;
   scanf("%d", &dummy);
     editorOpen(argv[1]);
     enableRawMode(STDIN_FILENO);
-    editorSetStatusMessage(
-        "HELP: Ctrl-Q = quit");
+    // editorSetStatusMessage(
+    //     "HELP: Ctrl-Q = quit");
     while(1) {
         editorRefreshScreen();
         editorProcessKeypress(STDIN_FILENO);
