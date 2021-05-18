@@ -60,6 +60,8 @@
 #define HL_NONPRINT 1
 #define HL_KEYWORD 2
 
+#define HL_MAX_VALUE HL_KEYWORD + 1
+
 /* This structure represents a single line of the file we are editing. */
 typedef struct erow {
     int idx;            /* Row index in the file, zero-based. */
@@ -100,6 +102,7 @@ typedef struct syntaxHighlightConfigSet {
 
 static struct editorConfig E;
 static struct syntaxHighlightConfigSet syntaxConf;
+static int syntaxColorPalette[HL_MAX_VALUE] = {-1};
 
 enum KEY_ACTION {
         KEY_NULL = 0,       /* NULL */
@@ -296,6 +299,13 @@ failed:
 
 /* ====================== Syntax highlight color scheme  ==================== */
 
+int getKeywordedHightlightSchee(const char *keyword) {
+  if(!strcmp(keyword, "NORMAL")) return HL_NORMAL;
+  if(!strcmp(keyword, "KEYWORD")) return HL_KEYWORD;
+  printf("Flowed out: unknown keyword: %s\n", keyword);
+  return -1;
+}
+
 /* Set every byte of row->hl (that corresponds to every character in the line)
  * to the right syntax highlight type (HL_* defines). */
 void editorUpdateSyntax(erow *row) {
@@ -382,6 +392,34 @@ void editorInsertRow(int at, char *s, size_t len) {
     editorUpdateRow(E.row+at);
     E.numrows++;
     E.dirty++;
+}
+
+void loadColorPalette(char *filename) {
+  FILE *fp;
+
+  fp = fopen(filename, "r");
+  if (!fp) {
+    printf("[!] Color palette configuration file cannot be open.\n");
+    printf("    '%s' is required.", filename);
+    exit(1);
+  }
+
+  char line[512];
+  char scheme[255];
+  int colorcode;
+  // Read each one lines
+  while(fgets(line, 512, fp) != NULL) {
+    // Ignore comment
+    if(strlen(line) == 1) continue;
+    if(strncmp(line, ".-*-.", 5) == 0) continue;
+    if(strncmp(line, "#", 1) == 0) continue;
+
+    sscanf(line, "%s\t%d", scheme, &colorcode);
+    int index = getKeywordedHightlightSchee(scheme);
+
+    syntaxColorPalette[index] = colorcode;
+    printf("%s(%d): %d\n", scheme, index, colorcode);
+  }
 }
 
 void loadSyntaxhightConfig(char *filename) {
@@ -569,11 +607,16 @@ void editorRefreshScreen(void) {
                         sym = '?';
                     abAppend(&ab,&sym,1);
                     abAppend(&ab,"\x1b[0m",4);
-                } else if (hl[j] == HL_KEYWORD) {
-                    abAppend(&ab, "\x1b[38;5;39m", 10); // 10
+                } else if (hl[j] < HL_MAX_VALUE) {
+                    editorSetStatusMessage("%d", hl[j]);
+                    char s[15] = "\x1b[38;5;m";
+                    if(hl[j] > 0) {
+                      sprintf(s, "\x1b[38;5;%dm", syntaxColorPalette[hl[j]]);
+                    }
+                    abAppend(&ab, s, strlen(s)); // 10
                     abAppend(&ab,c+j,1);
-                    current_color = HL_KEYWORD;
-                 } else if (hl[j] == HL_NORMAL) {
+                    current_color = hl[j];
+                } else if (hl[j] == HL_NORMAL) {
                     if (current_color != -1) {
                         abAppend(&ab,"\x1b[39m",5);
                         current_color = -1;
@@ -820,6 +863,7 @@ int main(int argc, char **argv) {
     }
 
     initEditor();
+    loadColorPalette("coloring.conf");
     loadSyntaxhightConfig("syntax.conf");
     for(int i = 0; i<syntaxConf.confignum; i++) {
       regmatch_t match;
@@ -837,6 +881,9 @@ int main(int argc, char **argv) {
       printf("  Matched: [%lld] .. [%lld]\n", match.rm_so, match.rm_eo);
       printf("    | #include <stdio.h>\n");
       printf("    |\x1b[%dCS\x1b[%dCG\n", match.rm_so, match.rm_eo - match.rm_so - 1);
+    }
+    for(int i = 0; i < HL_MAX_VALUE; i++) {
+      printf("%2d: %03d\n", i, syntaxColorPalette[i]);
     }
   int dummy;
   scanf("%d", &dummy);
