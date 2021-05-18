@@ -299,8 +299,9 @@ failed:
 /* Set every byte of row->hl (that corresponds to every character in the line)
  * to the right syntax highlight type (HL_* defines). */
 void editorUpdateSyntax(erow *row) {
+  editorSetStatusMessage("editorUpdateSyntax has been called");
     row->hl = realloc(row->hl,row->rsize);
-    memset(row->hl,HL_NORMAL,row->rsize);
+  // memset(row->hl,HL_NORMAL,row->rsize);
 }
 /* ======================= Editor rows implementation ======================= */
 
@@ -351,7 +352,8 @@ void editorInsertRow(int at, char *s, size_t len) {
     E.row[at].size = len;
     E.row[at].chars = malloc(len+1);
     memcpy(E.row[at].chars,s,len+1);
-    E.row[at].hl = NULL;
+    E.row[at].hl = malloc(len+1);
+    memset(E.row[at].hl, 2, len + 1);
     E.row[at].hl_oc = 0;
     E.row[at].render = NULL;
     E.row[at].rsize = 0;
@@ -475,6 +477,7 @@ struct abuf {
 };
 
 #define ABUF_INIT {NULL,0}
+#define abAutoAppend(ab, s) abAppend(ab, s, strlen(s))
 
 void abAppend(struct abuf *ab, const char *s, int len) {
     char *new = realloc(ab->b,ab->len+len);
@@ -530,6 +533,7 @@ void editorRefreshScreen(void) {
             unsigned char *hl = r->hl+E.coloff;
             int j;
             for (j = 0; j < len; j++) {
+                editorSetStatusMessage("[%d, %d] %c", y, j, c[j]);
                 if (hl[j] == HL_NONPRINT) {
                     char sym;
                     abAppend(&ab,"\x1b[7m",4);
@@ -539,7 +543,10 @@ void editorRefreshScreen(void) {
                         sym = '?';
                     abAppend(&ab,&sym,1);
                     abAppend(&ab,"\x1b[0m",4);
-                } else if (hl[j] == HL_NORMAL) {
+                } else if (hl[j] == HL_KEYWORD) {
+                    abAppend(&ab, "\x1b[38;5;39m", 10); // 10
+                    abAppend(&ab, &c[j], 1);
+                 } else if (hl[j] == HL_NORMAL) {
                     if (current_color != -1) {
                         abAppend(&ab,"\x1b[39m",5);
                         current_color = -1;
