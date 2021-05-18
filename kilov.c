@@ -383,9 +383,16 @@ void loadSyntaxhightConfig(char *filename) {
     regex_t cplregex;
     if(regcomp(&cplregex, regex, REG_EXTENDED)) {
       printf("[!!!] Compilation failed for the regex below:\n");
+      printf("    Index: %d\n", syntaxConf.confignum);
+      printf("    Related regex: \"%s\"", regex);
       printf("\n");
-      printf("      %s\n", regex);
       exit(2);
+    }
+    if(cplregex.re_nsub >= 1) {
+      printf("[W] Warning: All pattern matches in the regex (which are the part surrounded by blackets) won't makes sense.\n");
+      printf("    Index: %d\n", syntaxConf.confignum);
+      printf("    Related regex: \"%s\"", regex);
+      printf("\n");
     }
 
     // Prepare the heap area
