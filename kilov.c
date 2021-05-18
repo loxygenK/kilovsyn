@@ -333,17 +333,11 @@ void editorUpdateSyntax(erow *row) {
       if(regexec(syn->reg, row->chars, 1, &match, 0)) {
         continue;
       };
-      editorSetStatusMessage("work: %s (%s) [(%d - %d): %s]", syn->regex, row->chars, match.rm_so, match.rm_eo, row->chars);
 
       // Fill up
       for(int j = match.rm_so; j < match.rm_eo; j++) {
         row->hl[j] = syn->level;
       }
-      // memset(
-      //   row->hl + match.rm_so,
-      //   syn->level,
-      //   (match.rm_eo - match.rm_so)
-      // );
     }
 }
 /* ======================= Editor rows implementation ======================= */
@@ -611,7 +605,6 @@ void editorRefreshScreen(void) {
             unsigned char *hl = r->hl+E.coloff;
             int j;
             for (j = 0; j < len; j++) {
-                // editorSetStatusMessage("[%d, %d] %c", y, j, c[j]);
                 if (hl[j] == HL_NONPRINT) {
                     char sym;
                     abAppend(&ab,"\x1b[7m",4);
@@ -622,7 +615,6 @@ void editorRefreshScreen(void) {
                     abAppend(&ab,&sym,1);
                     abAppend(&ab,"\x1b[0m",4);
                 } else if (hl[j] < HL_MAX_VALUE) {
-                    editorSetStatusMessage("%d", hl[j]);
                     char s[15] = "\x1b[38;5;m";
                     if(hl[j] > 0) {
                       sprintf(s, "\x1b[38;5;%dm", syntaxColorPalette[hl[j]]);
@@ -879,32 +871,10 @@ int main(int argc, char **argv) {
     initEditor();
     loadColorPalette("coloring.conf");
     loadSyntaxhightConfig("syntax.conf");
-    for(int i = 0; i<syntaxConf.confignum; i++) {
-      regmatch_t match;
-      printf("'%s' => %d\n", syntaxConf.configs[i].regex, syntaxConf.configs[i].level);
-      if(
-        regexec(
-          syntaxConf.configs[i].reg,
-          "#include <stdio.h>",
-          1, &match, 0
-        )
-      ) {
-        printf("  No match or something went wrong\n");
-        continue;
-      }
-      printf("  Matched: [%lld] .. [%lld]\n", match.rm_so, match.rm_eo);
-      printf("    | #include <stdio.h>\n");
-      printf("    |\x1b[%dCS\x1b[%dCG\n", match.rm_so, match.rm_eo - match.rm_so - 1);
-    }
-    for(int i = 0; i < HL_MAX_VALUE; i++) {
-      printf("%2d: %03d\n", i, syntaxColorPalette[i]);
-    }
-  int dummy;
-  scanf("%d", &dummy);
     editorOpen(argv[1]);
     enableRawMode(STDIN_FILENO);
-    // editorSetStatusMessage(
-    //     "HELP: Ctrl-Q = quit");
+    editorSetStatusMessage(
+        "HELP: Ctrl-Q = quit");
     while(1) {
         editorRefreshScreen();
         editorProcessKeypress(STDIN_FILENO);
