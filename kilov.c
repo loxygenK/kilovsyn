@@ -106,6 +106,14 @@ typedef struct syntaxHighlightConfigSet {
   syntaxHighlightConfig *configs;
 } syntaxHighlightConfigSet;
 
+typedef struct Argument {
+  char *filename;
+  char *syntaxConfFilename;
+  char *colorConfFilename;
+  int help;
+  int invalid;
+} Argument;
+
 static struct editorConfig E;
 static struct syntaxHighlightConfigSet syntaxConf;
 static int syntaxColorPalette[HL_MAX_VALUE] = {-1};
@@ -314,7 +322,6 @@ int getKeywordedHightlightSchee(const char *keyword) {
   if(!strcmp(keyword, "COMMENT")) return HL_COMMENT;
   if(!strcmp(keyword, "NUMLIT")) return HL_NUM_LIT;
   if(!strcmp(keyword, "STRLIT")) return HL_STR_LIT;
-  printf("Flowed out: unknown keyword: %s\n", keyword);
   return -1;
 }
 
@@ -424,7 +431,6 @@ void loadColorPalette(char *filename) {
     int index = getKeywordedHightlightSchee(scheme);
 
     syntaxColorPalette[index] = colorcode;
-    printf("%s(%d): %d\n", scheme, index, colorcode);
   }
 }
 
@@ -840,19 +846,96 @@ void initEditor(void) {
     updateWindowSize();
 }
 
+#define ANALYSE_READY 0
+#define ANALYSE_FILENAME 1
+#define ANALYSE_SYNTAX 2
+#define ANALYSE_COLORPALETTE 3
+void analyseCommandArguments(int argc, char **argv, Argument *args) {
+  int current_mode = ANALYSE_FILENAME;
+
+  args->filename = NULL;
+  args->syntaxConfFilename = NULL;
+  args->colorConfFilename = NULL;
+  args->help = 0;
+  args->invalid = 0;
+  for(int i = 1; i<argc; i++) {
+    if(!strncmp(argv[i], "-h", 2) || !strncmp(argv[i], "--help", 8)) {
+      args->help = 1;
+      break;
+    }
+
+    switch(current_mode) {
+      case ANALYSE_FILENAME:
+        args->filename = malloc(sizeof(char) * strlen(argv[i]));
+        memcpy(args->filename, argv[i], strlen(argv[i]));
+        break;
+      case ANALYSE_SYNTAX:
+        args->syntaxConfFilename = malloc(sizeof(char) * strlen(argv[i]));
+        memcpy(args->syntaxConfFilename, argv[i], strlen(argv[i]));
+        break;
+      case ANALYSE_COLORPALETTE:
+        args->colorConfFilename = malloc(sizeof(char) * strlen(argv[i]));
+        memcpy(args->colorConfFilename, argv[i], strlen(argv[i]));
+        break;
+    }
+    if(current_mode != ANALYSE_READY) {
+      current_mode = ANALYSE_READY;
+      continue;
+    }
+
+    if(!strncmp(argv[i], "-s", 2) || !strncmp(argv[i], "--syntax", 8)) {
+      current_mode = ANALYSE_SYNTAX;
+    } else if(!strncmp(argv[i], "-c", 2) || !strncmp(argv[i], "--color", 8)) {
+      current_mode = ANALYSE_COLORPALETTE;
+    } else {
+      args->invalid = 1;
+      break;
+    }
+  }
+}
+
+void showHelp(const char* executable) {
+  puts("kilov - A text viewer derived from kilo");
+  puts("");
+  puts("Usage:");
+  printf("   %s filename [(-s|--syntax) SYNTAXCONF] [(-c|--color) COLORCONF]\n", executable);
+  puts("");
+  puts("Arguments:");
+  puts("  filename               : The name of the file to read.");
+  puts("  -s|--syntax SYNTAXCONF : The name of the syntax configuration file.");
+  puts("  -c|--color COLORCONF   : The name of the color configuration file.");
+}
+
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        fprintf(stderr,"Usage: kilo <filename>\n");
-        exit(1);
+
+    Argument args;
+    analyseCommandArguments(argc, argv, &args);
+
+    if(args.help) {
+      showHelp(argv[0]);
+      exit(0);
+    }
+
+    if(args.invalid) {
+      printf("[!] Unexpected argument.\n");
+      printf("    Use '-h' or '--help' to see help.");
+      exit(1);
+    }
+
+    if(!args.filename) {
+      printf("[!] No filename specified.\n");
+      printf("    Use '-h' or '--help' to see help.");
+      exit(1);
     }
 
     initEditor();
-    loadColorPalette("coloring.conf");
-    loadSyntaxhightConfig("syntax.conf");
-    editorOpen(argv[1]);
+    loadColorPalette(args.colorConfFilename ? args.colorConfFilename : "coloring.conf");
+    loadSyntaxhightConfig(args.syntaxConfFilename ? args.syntaxConfFilename : "syntax.conf");
+    editorOpen(args.filename);
     enableRawMode(STDIN_FILENO);
     editorSetStatusMessage(
         "HELP: Ctrl-Q = quit");
+
     while(1) {
         editorRefreshScreen();
         editorProcessKeypress(STDIN_FILENO);
