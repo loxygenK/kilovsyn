@@ -86,9 +86,20 @@ struct editorConfig {
     time_t statusmsg_time;
 };
 
-static struct editorConfig E;
+typedef struct syntaxHighlightConfig {
+  char *regex;
+  int level;
+} syntaxHighlightConfig;
 
-enum KEY_ACTION{
+typedef struct syntaxHighlightConfigSet {
+  int confignum;
+  syntaxHighlightConfig *configs;
+} syntaxHighlightConfigSet;
+
+static struct editorConfig E;
+static struct syntaxHighlightConfigSet syntaxConf;
+
+enum KEY_ACTION {
         KEY_NULL = 0,       /* NULL */
         CTRL_C = 3,         /* Ctrl-c */
         CTRL_D = 4,         /* Ctrl-d */
@@ -346,6 +357,40 @@ void editorInsertRow(int at, char *s, size_t len) {
     editorUpdateRow(E.row+at);
     E.numrows++;
     E.dirty++;
+}
+
+void loadSyntaxhightConfig(char *filename) {
+  FILE *fp;
+
+  fp = fopen(filename, "r");
+  if (!fp) {
+    printf("[!] Syntax highlight configuration file cannot be open.");
+    printf("    'syntax.conf' is required at the same directory of executable.");
+    exit(1);
+  }
+
+  char line[512];
+  char regex[255];
+  char level[255];
+  while(fgets(line, 512, fp) != NULL) {
+    sscanf(line, "%s\t%s", regex, level);
+  
+    ++syntaxConf.confignum;
+    syntaxConf.configs = realloc(
+      syntaxConf.configs,
+      sizeof(syntaxHighlightConfig) * syntaxConf.confignum
+    );
+    syntaxConf.configs[syntaxConf.confignum - 1].regex = 
+      malloc(sizeof(char) * strlen(regex));
+    memcpy(
+      syntaxConf.configs[syntaxConf.confignum - 1].regex,
+      regex,
+      strlen(regex)
+    );
+    syntaxConf.configs[syntaxConf.confignum - 1].level = 3;
+  }
+
+  fclose(fp);
 }
 
 /* Load the specified program in the editor memory and returns 0 on success
@@ -705,6 +750,12 @@ int main(int argc, char **argv) {
     }
 
     initEditor();
+    loadSyntaxhightConfig("syntax.conf");
+    for(int i = 0; i<syntaxConf.confignum; i++) {
+      printf("'%s' => %d\n", syntaxConf.configs[i].regex, syntaxConf.configs[i].level);
+    }
+  int dummy;
+  scanf("%d", &dummy);
     editorOpen(argv[1]);
     enableRawMode(STDIN_FILENO);
     editorSetStatusMessage(
