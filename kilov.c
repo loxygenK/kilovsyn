@@ -311,10 +311,10 @@ void editorUpdateSyntax(erow *row) {
       if(regexec(syn->reg, row->chars, 1, &match, 0)) {
         continue;
       };
-      editorSetStatusMessage("work: %s (%s)", syn->regex, row->chars);
+      editorSetStatusMessage("work: %s (%s) [(%d - %d): %s]", syn->regex, row->chars, match.rm_so, match.rm_eo, row->chars);
 
       // Fill up
-      for(int j = match.rm_so; j <= match.rm_eo; j++) {
+      for(int j = match.rm_so; j < match.rm_eo; j++) {
         row->hl[j] = syn->level;
       }
       // memset(
@@ -572,6 +572,7 @@ void editorRefreshScreen(void) {
                 } else if (hl[j] == HL_KEYWORD) {
                     abAppend(&ab, "\x1b[38;5;39m", 10); // 10
                     abAppend(&ab,c+j,1);
+                    current_color = HL_KEYWORD;
                  } else if (hl[j] == HL_NORMAL) {
                     if (current_color != -1) {
                         abAppend(&ab,"\x1b[39m",5);
@@ -662,6 +663,7 @@ void editorMoveCursor(int key) {
             if (E.coloff) {
                 E.coloff--;
             } else {
+
                 if (filerow > 0) {
                     E.cy--;
                     E.cx = E.row[filerow-1].size;
