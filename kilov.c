@@ -329,21 +329,27 @@ int getKeywordedHightlightSchee(const char *keyword) {
  * to the right syntax highlight type (HL_* defines). */
 void editorUpdateSyntax(erow *row) {
     row->hl = realloc(row->hl,row->rsize);
+    memset(row->hl, HL_NORMAL, row->rsize);
 
     // Handle regex
     for(int i = 0; i < syntaxConf.confignum; i++) {
-      regmatch_t match;
       syntaxHighlightConfig *syn = &syntaxConf.configs[i];
 
-      // Execute pattern match
-      // ( if regexec() returns non-zero value, no match found )
-      if(regexec(syn->reg, row->chars, 1, &match, 0)) {
-        continue;
-      };
+      printf("Using %s\n", syn->regex);
+      int startidx = 0;
+      while(1) {
+        regmatch_t match;
 
-      // Fill up
-      for(int j = match.rm_so; j < match.rm_eo; j++) {
-        row->hl[j] = syn->level;
+        // Execute pattern match
+        // ( if regexec() returns non-zero value, no match found )
+        if(regexec(syn->reg, &row->chars[startidx], 1, &match, 0)) break;
+
+        // Fill up
+        for(int j = (startidx + match.rm_so); j < (startidx + match.rm_eo); j++) {
+          row->hl[j] = syn->level;
+        }
+
+        startidx = startidx + match.rm_eo;
       }
     }
 }
