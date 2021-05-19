@@ -338,7 +338,6 @@ void editorUpdateSyntax(erow *row) {
     for(int i = 0; i < syntaxConf.confignum; i++) {
       syntaxHighlightConfig *syn = &syntaxConf.configs[i];
 
-      printf("Using %s\n", syn->regex);
       int startidx = 0;
       while(1) {
         regmatch_t match;
