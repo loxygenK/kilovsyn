@@ -55,6 +55,9 @@
 #include <signal.h>
 #include <regex.h>
 
+#define DEFAULT_COLORPALETTE "coloring/coloring.conf"
+#define DEFAULT_SYNTAX       "syntax/syntax.conf"
+
 /* Syntax highlight types */
 #define HL_NORMAL 0
 #define HL_NONPRINT 1
@@ -919,8 +922,12 @@ int main(int argc, char **argv) {
     }
 
     initEditor();
-    loadColorPalette(args.colorConfFilename ? args.colorConfFilename : "coloring.conf");
-    loadSyntaxhightConfig(args.syntaxConfFilename ? args.syntaxConfFilename : "syntax.conf");
+    loadColorPalette(
+      args.colorConfFilename ? args.colorConfFilename : DEFAULT_COLORPALETTE
+    );
+    loadSyntaxhightConfig(
+      args.syntaxConfFilename ? args.syntaxConfFilename : DEFAULT_SYNTAX
+    );
     editorOpen(args.filename);
     enableRawMode(STDIN_FILENO);
     editorSetStatusMessage(
