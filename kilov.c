@@ -595,28 +595,12 @@ void editorRefreshScreen(void) {
             unsigned char *hl = r->hl+E.coloff;
             int j;
             for (j = 0; j < len; j++) {
-                if (hl[j] == HL_NONPRINT) {
-                    char sym;
-                    abAppend(&ab,"\x1b[7m",4);
-                    if (c[j] <= 26)
-                        sym = '@'+c[j];
-                    else
-                        sym = '?';
-                    abAppend(&ab,&sym,1);
-                    abAppend(&ab,"\x1b[0m",4);
-                } else if (hl[j] < HL_MAX_VALUE) {
-                    char s[15] = "\x1b[38;5;m";
+                if (hl[j] < HL_MAX_VALUE) {
+                    char s[15] = "\x1b[39m";
                     if(hl[j] > 0) {
                       sprintf(s, "\x1b[38;5;%dm", syntaxColorPalette[hl[j]]);
                     }
                     abAppend(&ab, s, strlen(s)); // 10
-                    abAppend(&ab,c+j,1);
-                    current_color = hl[j];
-                } else if (hl[j] == HL_NORMAL) {
-                    if (current_color != -1) {
-                        abAppend(&ab,"\x1b[39m",5);
-                        current_color = -1;
-                    }
                     abAppend(&ab,c+j,1);
                 } else {
                   abAppend(&ab,c+j,1);
